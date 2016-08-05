@@ -1,3 +1,15 @@
+;描述符类型
+DA_32	EQU	4000h		;32位段
+
+;存储段描述符类型
+DA_DR	EQU	90h		;存在的只读数据段类型值
+DA_DRW	EQU	92h		;存在的可读写数据段属性值
+DA_DRWA	EQU	93h		;存在的已访问可读写数据段类型值
+DA_C	EQU	98h		;存在的只执行代码段属性值
+DA_CR	EQU	9Ah		;存在的可执行可读代码段属性值
+DA_CCO	EQU	9Ch		;存在的只执行一致代码段属性值
+DA_CCOR	EQU	9EH		;存在的可执行可读一致代码段属性值
+
 ;描述符
 ;usage: Descriptor Base, Limit, Attr
 ;	Base:	dd
@@ -7,6 +19,6 @@
 	dw	%2 & 0FFFFh				;段界限1
 	dw	%1 & 0FFFFh				;段基址1
 	db	(%1 >> 16) & 0FFh			;段基址2
-	dw	((%2 >>8 ) & 0F00H) | (%3 & 0F0FFh)	;属性1 + 段界限2 + 属性2
+	dw	((%2 >> 8) & 0F00H) | (%3 & 0F0FFh)	;属性1 + 段界限2 + 属性2
 	db	(%1 >> 24) & 0FFH			;段基址3
-	%endmacro					;共8字节
+%endmacro						;共8字节

@@ -10,14 +10,14 @@ romimage: file=/usr/share/bochs/BIOS-bochs-latest
 vgaromimage: file=/usr/share/vgabios/vgabios.bin
 
 # what disk images will be used
-floppya: 1_44=a.img, status=inserted
+# floppya: 1_44=a.img, status=inserted
 
-#floppya: 1_44=freedos.img, status=inserted
-#floppyb: 1_44=pm.img, status=inserted
+floppya: 1_44=freedos.img, status=inserted
+floppyb: 1_44=pm.img, status=inserted
 
 # choose the boot disk.
-boot: floppy
-# boot: a
+# boot: floppy
+boot: a
 
 # log output
 log: .bochsout
@@ -34,4 +34,4 @@ mouse: enabled=0
 
 keyboard_mapping: enabled=1, map=/usr/share/bochs/keymaps/sdl-pc-us.map
 
-display_library: sdl,options=gui_debug
+display_library: sdl, options=gui_debug
