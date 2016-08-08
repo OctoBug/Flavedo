@@ -1,6 +1,6 @@
 ;==========================================
-;pmtest1.asm
-;编译方法: nasm pmtest1.asm -o pmtest1.bin
+;pmtest.asm
+;编译方法: nasm pmtest.asm -o pmtest.bin
 ;==========================================
 
 %include	"pm.inc"	;常量，宏，以及一些说明
@@ -12,7 +12,12 @@ org	0100h
 ;GDT
 ;					段基址		段界限		属性
 LABEL_GDT:		Descriptor	0,		0,		0		;空描述符
-LABEL_DESC_CODE32:	Descriptor	0,		SegCode32Len-1,	DA_C + DA_32	;非一致代码段
+LABEL_DESC_NORMAL:	Descriptor	0,		0FFFFh,		DA_DRW		;Normal描述符
+LABEL_DESC_CODE32:	Descriptor	0,		SegCode32Len-1,	DA_C + DA_32	;非一致代码段，32位
+LABEL_DESC_CODE16:	Descriptor	0,		0FFFFh,		DA_C		;非一致代码段，16位
+LABEL_DESC_DATA:	Descriptor	0,		DataLen-1,	DA_DRW		;数据段
+LABEL_DESC_STACK:	Descriptor	0,		TopOfStack,	DA_DRWA+DA_32	;栈，32位
+LABEL_DESC_TEST:	Descriptor	0500000h,	0FFFFh,		DA_DRW		;测试段
 LABEL_DESC_VIDEO:	Descriptor	0B8000h,	0FFFFh,		DA_DRW		;显存首地址
 ;GDT结束
 
@@ -21,12 +26,38 @@ GdtPtr		dw	GdtLen - 1	;GDT界限
 		dd	0		;GDT基地址
 
 ;GDT选择子
+SelectorNormal		equ	LABEL_DESC_NORMAL - LABEL_GDT
 SelectorCode32		equ	LABEL_DESC_CODE32 - LABEL_GDT
+SelectorCode16		equ	LABEL_DESC_CODE16 - LABEL_GDT
+SelectorData		equ	LABEL_DESC_DATA - LABEL_GDT
+SelectorStack		equ	LABEL_DESC_STACK - LABEL_GDT
+SelectorTest		equ	LABEL_DESC_TEST - LABEL_GDT
 SelectorVideo		equ	LABEL_DESC_VIDEO - LABEL_GDT
 ;END of [SECTION .gdt]
 
+[SECTION .data1]	;数据段
+ALIGN 32
+[BITS 32]		;指定目标处理器模式为32位
+LABEL_DATA:
+SPValueInRealMode	dw 0
+;字符串
+PMMessage:		db "In Protect Mode now.",0		;在保护模式中显示
+OffsetPMMessage		equ PMMessage - $$
+StrTest:		db "ABCDEFGHIJKLMNOPQRSTUVWXYZ",0
+OffsetStrTest		equ StrTest - $$
+DataLen			equ $ - LABEL_DATA
+;END of [SECTION .data1]
+
+;全局堆栈段
+[SECTION .gs]
+ALIGN 32
+[BITS 32]
+LABEL_STACK:		times 512 db 0
+TopOfStack		equ $ - LABEL_STACK - 1
+;END of [SECTION .gs]
+
 [SECTION .s16]
-[BITS 16]
+[BITS 16]		;指定目标处理器模式位16位
 LABEL_BEGIN:
 	mov	ax,cs
 	mov	ds,ax
