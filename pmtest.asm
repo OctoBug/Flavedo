@@ -43,7 +43,7 @@ SPValueInRealMode	dw 0
 ;字符串
 PMMessage:		db "In Protect Mode now.",0		;在保护模式中显示
 OffsetPMMessage		equ PMMessage - $$
-StrTest:		db "ABCDEFGHIJKLMNOPQRSTUVWXYZ",0
+StrTest:		db "Test LDT and I hate ASM.",0
 OffsetStrTest		equ StrTest - $$
 DataLen			equ $ - LABEL_DATA
 ;END of [SECTION .data1]
@@ -128,6 +128,17 @@ LABEL_BEGIN:
 	mov	byte[LABEL_LDT_DESC_CODEA + 4],al
 	mov	byte[LABEL_LDT_DESC_CODEA + 7],ah
 
+;--------------------------------------------------------
+	xor	eax,eax
+	mov	ax,ds
+	shl	eax,4
+	add	eax,LABEL_TEST
+	mov	word[LABEL_LDT_DESC_TEST + 2],ax
+	shr	eax,16
+	mov	byte[LABEL_LDT_DESC_TEST + 4],al
+	mov	byte[LABEL_LDT_DESC_TEST + 7],ah
+;--------------------------------------------------------
+
 	;为加载GDTR作准备
 	xor	eax,eax
 	mov	ax,ds
@@ -207,7 +218,7 @@ LABEL_SEG_CODE32:
 	mov	ax,SelectorLDT
 	lldt	ax
 
-	jmp	SelectorLDTCodeA:0			;跳入局部任务
+	jmp	SelectorLDTTest:0			;跳入局部任务
 
 ;---------------------------------------------------------------------------
 DispReturn:				;将edi指向下一行
@@ -259,11 +270,16 @@ ALIGN 32
 LABEL_LDT:
 ;					段基址	段界限		属性
 LABEL_LDT_DESC_CODEA:	Descriptor	0,	CodeALen - 1,	DA_C + DA_32	;代码段，32位
+;----------------------------------------------------------------------------
+LABEL_LDT_DESC_TEST:	Descriptor	0,	CodeTestLen - 1,DA_C + DA_32
 
 LDTLen	equ	$ - LABEL_LDT
 
 ;LDT选择子
 SelectorLDTCodeA	equ	LABEL_LDT_DESC_CODEA - LABEL_LDT + SA_TIL
+;----------------------------------------------------------------------------
+SelectorLDTTest		equ	LABEL_LDT_DESC_TEST - LABEL_LDT + SA_TIL
+
 ;END of [SECTION .ldt]
 
 ;CodeA: LDT，32位代码段
@@ -283,3 +299,34 @@ LABEL_CODE_A:
 	jmp	SelectorCode16:0
 CodeALen	equ	$ - LABEL_CODE_A
 ;END of [SECTION .la]
+
+[SECTION .test]
+ALIGN 32
+[BITS 32]
+LABEL_TEST:
+	mov	ax,SelectorData
+	mov	ds,ax
+	mov	ax,SelectorVideo
+	mov	gs,ax
+	mov	ax,SelectorStack
+	mov	ss,ax
+	mov	esp,TopOfStack
+
+	mov	ah,0Ch
+	xor	esi,esi
+	xor	edi,edi
+	mov	esi,OffsetStrTest
+	mov	edi,(80 * 12 + 0) * 2
+	cld
+.1:
+	lodsb
+	test	al,al
+	jz	.2
+	mov	[gs:edi],ax
+	add	edi,2
+	jmp	.1
+.2:
+	jmp	SelectorCode16:0
+CodeTestLen	equ	$ - LABEL_TEST
+;END of [SECTION .test]
+
