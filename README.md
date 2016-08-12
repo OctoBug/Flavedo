@@ -4,9 +4,11 @@ Kernel exercise
 ### Log
 * 2016.07.21 Start the Flavedo
 * 2016.07.13 Repository Flavedo Created & Information collecting
+
 ---
 ## Stage 1: Start the Flavedo
 - 2016.07.21
+
 ---
 ## Stage 0: Repository Flavedo Created & Information collecting
 - 2016.07.13
