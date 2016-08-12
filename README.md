@@ -15,4 +15,4 @@ Kernel exercise
 
 Highly recommend this answer & the problem: [如何从零开始写一个简单的操作系统？](https://www.zhihu.com/question/25628124/answer/71510837)
 
-**'Flavedo'** means a skin-deep imitation based on  《Orange's：一个操作系统的实现》.
+**'Flavedo'** means a skin-deep imitation based on 《Orange's：一个操作系统的实现》.
