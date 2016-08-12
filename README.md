@@ -6,11 +6,11 @@ Kernel exercise
 * 2016.07.13 Repository Flavedo Created & Information collecting
 
 ---
-## Stage 1: Start the Flavedo
+### Stage 1: Start the Flavedo
 - 2016.07.21
 
 ---
-## Stage 0: Repository Flavedo Created & Information collecting
+### Stage 0: Repository Flavedo Created & Information collecting
 - 2016.07.13
 
 Highly recommend this answer & the problem[：如何从零开始写一个简单的操作系统？](https://www.zhihu.com/question/25628124/answer/71510837)
