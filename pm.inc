@@ -8,12 +8,13 @@
 ;	RW	:	读写
 ;	A	:	已访问
 ;--------------------------------------------
-DA_32	EQU	4000h		;32位段
+DA_32		EQU	4000h		;32位段
+DA_LIMIT_4K	EQU	8000h		;段界限粒度为4K字节
 
-DA_DPL0	EQU	00h		;DPL=0
-DA_DPL1	EQU	20h		;DPL=1
-DA_DPL2	EQU	40h		;DPL=2
-DA_DPL3	EQU	60h		;DPL=3
+DA_DPL0		EQU	00h		;DPL=0
+DA_DPL1		EQU	20h		;DPL=1
+DA_DPL2		EQU	40h		;DPL=2
+DA_DPL3		EQU	60h		;DPL=3
 ;--------------------------------------------
 ;存储段描述符类型
 ;--------------------------------------------
@@ -45,6 +46,17 @@ SA_RPL3	EQU	3
 
 SA_TIG	EQU	0
 SA_TIL	EQU	4
+
+;--------------------------------------------
+;分页机制使用的常量说明
+;--------------------------------------------
+PG_P	EQU	1	;页存在属性位
+PG_RWR	EQU	0	;R/W 属性位值，读/执行
+PG_RWW	EQU	2	;R/W 属性位值，读/写/执行
+PG_USS	EQU	0	;U/S 属性位值，系统级
+PG_USU	EQU	4	;U/S 属性位值，用户级
+;--------------------------------------------
+
 ;--------------------------------------------
 ;描述符
 ;usage: Descriptor Base, Limit, Attr
@@ -52,11 +64,11 @@ SA_TIL	EQU	4
 ;	Limit:	dd (low 20 bits available)
 ;	Attr:	dw (lower 4 bits of higher byte are always 0)
 %macro Descriptor 3
-	dw	%2 & 0FFFFh				;段界限1
-	dw	%1 & 0FFFFh				;段基址1
-	db	(%1 >> 16) & 0FFh			;段基址2
-	dw	((%2 >> 8) & 0F00H) | (%3 & 0F0FFh)	;属性1 + 段界限2 + 属性2
-	db	(%1 >> 24) & 0FFH			;段基址3
+	dw	(%2) & 0FFFFh				;段界限1
+	dw	(%1) & 0FFFFh				;段基址1
+	db	((%1) >> 16) & 0FFh			;段基址2
+	dw	(((%2) >> 8) & 0F00H) | ((%3) & 0F0FFh)	;属性1 + 段界限2 + 属性2
+	db	((%1) >> 24) & 0FFH			;段基址3
 %endmacro						;共8字节
 
 ;--------------------------------------------
@@ -67,8 +79,8 @@ SA_TIL	EQU	4
 ;	DCount:		db
 ;	Attr:		db
 %macro Gate 4
-	dw	(%2 & 0FFFFh)				;偏移1
-	dw	%1					;选择子
-	dw	(%3 & 1Fh) | ((%4 << 8) & 0FF00h)	;属性
-	dw	((%2 >> 16) & 0FFFFh)			;偏移2
+	dw	((%2) & 0FFFFh)				;偏移1
+	dw	(%1)					;选择子
+	dw	((%3) & 1Fh) | (((%4) << 8) & 0FF00h)	;属性
+	dw	(((%2) >> 16) & 0FFFFh)			;偏移2
 %endmacro

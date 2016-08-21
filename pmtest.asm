@@ -13,19 +13,19 @@ org	0100h
 ;					段基址		段界限			属性
 LABEL_GDT:		Descriptor	0,		0,			0		;空描述符
 LABEL_DESC_NORMAL:	Descriptor	0,		0FFFFh,			DA_DRW		;Normal描述符
-LABEL_DESC_CODE32:	Descriptor	0,		SegCode32Len - 1,	DA_C + DA_32	;非一致代码段，32位
+LABEL_DESC_CODE32:	Descriptor	0,		SegCode32Len - 1,	DA_C | DA_32	;非一致代码段，32位
 LABEL_DESC_CODE16:	Descriptor	0,		0FFFFh,			DA_C		;非一致代码段，16位
-LABEL_DESC_CODE_DEST:	Descriptor	0,		SegCodeDestLen - 1,	DA_C + DA_32	;非一致代码段，32位
-LABEL_DESC_CODE_RING3:	Descriptor	0,		SegCodeRing3Len - 1,	DA_C + DA_32 + DA_DPL3
+LABEL_DESC_CODE_DEST:	Descriptor	0,		SegCodeDestLen - 1,	DA_C | DA_32	;非一致代码段，32位
+LABEL_DESC_CODE_RING3:	Descriptor	0,		SegCodeRing3Len - 1,	DA_C | DA_32 | DA_DPL3
 LABEL_DESC_DATA:	Descriptor	0,		DataLen - 1,		DA_DRW		;数据段
-LABEL_DESC_STACK:	Descriptor	0,		TopOfStack,		DA_DRWA + DA_32	;栈，32位
-LABEL_DESC_STACK3:	Descriptor	0,		TopOfStack3,		DA_DRWA + DA_32 + DA_DPL3
+LABEL_DESC_STACK:	Descriptor	0,		TopOfStack,		DA_DRWA | DA_32	;栈，32位
+LABEL_DESC_STACK3:	Descriptor	0,		TopOfStack3,		DA_DRWA | DA_32 | DA_DPL3
 LABEL_DESC_LDT:		Descriptor	0,		LDTLen - 1,		DA_LDT		;LDT
 LABEL_DESC_TSS:		Descriptor	0,		TSSLen - 1,		DA_386TSS
-LABEL_DESC_VIDEO:	Descriptor	0B8000h,	0FFFFh,			DA_DRW + DA_DPL3;显存首地址
+LABEL_DESC_VIDEO:	Descriptor	0B8000h,	0FFFFh,			DA_DRW | DA_DPL3;显存首地址
 
 ;门------------------------目标选择子		偏移	DCount	属性
-LABEL_CALL_GATE_TEST: Gate SelectorCodeDest,	0,	0,	DA_386CG + DA_DPL3
+LABEL_CALL_GATE_TEST: Gate SelectorCodeDest,	0,	0,	DA_386CG | DA_DPL3
 
 ;GDT结束
 
@@ -38,15 +38,15 @@ SelectorNormal		equ	LABEL_DESC_NORMAL - LABEL_GDT
 SelectorCode32		equ	LABEL_DESC_CODE32 - LABEL_GDT
 SelectorCode16		equ	LABEL_DESC_CODE16 - LABEL_GDT
 SelectorCodeDest	equ	LABEL_DESC_CODE_DEST - LABEL_GDT
-SelectorCodeRing3	equ	LABEL_DESC_CODE_RING3 - LABEL_GDT + SA_RPL3
+SelectorCodeRing3	equ	LABEL_DESC_CODE_RING3 - LABEL_GDT | SA_RPL3
 SelectorData		equ	LABEL_DESC_DATA - LABEL_GDT
 SelectorStack		equ	LABEL_DESC_STACK - LABEL_GDT
-SelectorStack3		equ	LABEL_DESC_STACK3 - LABEL_GDT + SA_RPL3
+SelectorStack3		equ	LABEL_DESC_STACK3 - LABEL_GDT | SA_RPL3
 SelectorTSS		equ	LABEL_DESC_TSS - LABEL_GDT
 SelectorLDT		equ	LABEL_DESC_LDT - LABEL_GDT
 SelectorVideo		equ	LABEL_DESC_VIDEO - LABEL_GDT
 
-SelectorCallGateTest	equ	LABEL_CALL_GATE_TEST - LABEL_GDT + SA_RPL3
+SelectorCallGateTest	equ	LABEL_CALL_GATE_TEST - LABEL_GDT | SA_RPL3
 ;END of [SECTION .gdt]
 
 [SECTION .data1]	;数据段
@@ -171,7 +171,7 @@ LABEL_BEGIN:
 	mov	ax,ds
 	shl	eax,4
 	add	eax,LABEL_STACK
-	mov	word [LABEL_DESC_STACK + 2],ax
+	mov	word[LABEL_DESC_STACK + 2],ax
 	shr	eax,16
 	mov	byte[LABEL_DESC_STACK + 4],al
 	mov	byte[LABEL_DESC_STACK + 7],ah
@@ -390,12 +390,12 @@ Code16Len	equ	$ - LABEL_SEG_CODE16
 ALIGN 32
 LABEL_LDT:
 ;					段基址	段界限		属性
-LABEL_LDT_DESC_CODEA:	Descriptor	0,	CodeALen - 1,	DA_C + DA_32	;代码段，32位
+LABEL_LDT_DESC_CODEA:	Descriptor	0,	CodeALen - 1,	DA_C | DA_32	;代码段，32位
 
 LDTLen	equ	$ - LABEL_LDT
 
 ;LDT选择子
-SelectorLDTCodeA	equ	LABEL_LDT_DESC_CODEA - LABEL_LDT + SA_TIL
+SelectorLDTCodeA	equ	LABEL_LDT_DESC_CODEA - LABEL_LDT | SA_TIL
 ;END of [SECTION .ldt]
 
 ;CodeA: LDT，32位代码段
