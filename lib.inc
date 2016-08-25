@@ -1,6 +1,6 @@
-;; lib.inc
-
 ;; 显示 AL 中的数字
+
+
 DispAL:
 	push	ecx
 	push	edx
@@ -40,6 +40,7 @@ DispAL:
 
 
 ;; 显示一个整形数
+
 DispInt:
 	mov	eax, [esp + 4]
 	shr	eax, 24
@@ -68,7 +69,9 @@ DispInt:
 	ret
 ;; DispInt 结束
 
+
 ;; 显示一个字符串
+
 DispStr:
 	push	ebp
 	mov	ebp, esp
@@ -111,7 +114,9 @@ DispStr:
 	ret
 ;; DispStr 结束
 
+
 ;; 换行
+
 DispReturn:
 	push	szReturn
 	call	DispStr			;printf("\n");
@@ -120,3 +125,38 @@ DispReturn:
 	ret
 ;; DispReturn 结束
 
+;内存拷贝-------------------------------------------------------------
+
+MemCpy:
+	push	ebp
+	mov	ebp,esp
+	
+	push	esi
+	push	edi
+	push	ecx
+
+	mov	edi,[ebp + 8]
+	mov	esi,[ebp + 12]
+	mov	ecx,[ebp + 16]
+.1:
+	cmp	ecx,0
+	jz	.2
+
+	mov	al,[ds:esi]
+	inc	esi
+
+	mov	byte[es:edi],al
+	inc	edi
+
+	dec	ecx
+	jmp	.1
+.2:
+	mov	eax,[ebp + 8]
+
+	pop	ecx
+	pop	edi
+	pop	esi
+	mov	esp,ebp
+	pop	ebp
+
+	ret
