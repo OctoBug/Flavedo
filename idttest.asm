@@ -92,6 +92,23 @@ PageTableNumber	equ	_PageTableNumber - $$
 DataLen		equ	$ - LABEL_DATA
 ; END of [SECTION .data1]
 
+
+;IDT
+[SECTION .idt]
+ALIGN 32
+[BITS 32]
+LABEL_IDT:
+;门             目标选择子,             偏移,                   Dcount,     属性
+%rep 255
+    Gate        SelectorCode32,         SpuriousHandler,        0,          DA_386IG
+%endrep
+
+IdtLen  equ     $ - LABEL_IDT
+IdtPtr  dw      IdtLen - 1          ;段界限
+        dd      0                   ;基地址
+;END of [SECTION .idt]
+
+
 ; 全局堆栈段
 [SECTION .gs]
 ALIGN	32
