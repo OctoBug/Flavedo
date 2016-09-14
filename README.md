@@ -9,7 +9,7 @@ Kernel exercise
 ### Stage 1: Start the Flavedo
 - 2016.09.13 continue
 - 2016.08.29 pause for the f**king internship
-- 2016.07.21
+- 2016.07.21 start
 
 ---
 ### Stage 0: Repository Flavedo Created & Information collecting
