@@ -1,4 +1,4 @@
-SRC:=memtest.asm
+SRC:=idttest.asm
 BIN:=$(subst .asm,.com,$(SRC))
 
 .PHONY : everything

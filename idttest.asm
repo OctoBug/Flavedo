@@ -120,6 +120,7 @@ TopOfStack	equ	$ - LABEL_STACK - 1
 
 ; END of [SECTION .gs]
 
+
 [SECTION .s16]
 [BITS	16]
 LABEL_BEGIN:
@@ -197,11 +198,21 @@ LABEL_MEM_CHK_OK:
 	add	eax, LABEL_GDT		; eax <- gdt 基地址
 	mov	dword [GdtPtr + 2], eax	; [GdtPtr + 2] <- gdt 基地址
 
+    ;为加载IDTR作准备
+    xor     eax,eax
+    mov     ax,ds
+    shl     eax,4
+    add     eax,LABEL_IDT
+    mov     dword[IdtPtr + 2],eax
+
 	; 加载 GDTR
 	lgdt	[GdtPtr]
 
 	; 关中断
 	cli
+
+    ;加载IDTR
+    lidt    [IdtPtr]
 
 	; 打开地址线A20
 	in	al, 92h
@@ -236,6 +247,7 @@ LABEL_REAL_ENTRY:		; 从保护模式跳回到实模式就到了这里
 	int	21h		; ┛回到 DOS
 ; END of [SECTION .s16]
 
+
 [SECTION .s32]; 32 位代码段. 由实模式跳入.
 [BITS	32]
 
@@ -265,6 +277,66 @@ LABEL_SEG_CODE32:
 	call	PagingDemo
 	
 	jmp	SelectorCode16:0
+
+
+; Init8259A ---------------------------------------------------------------------------------------------
+Init8259A:
+    mov     al, 011h
+    out     020h, al; 主8259, ICW1.
+    call    io_delay
+
+    out     0A0h, al; 从8259, ICW1.
+    call    io_delay
+
+    mov     al, 020h; IRQ0 对应中断向量 0x20
+    out     021h, al; 主8259, ICW2.
+    call    io_delay
+
+    mov     al, 028h; IRQ8 对应中断向量 0x28
+    out     0A1h, al; 从8259, ICW2.
+    call    io_delay
+
+    mov     al, 004h; IR2 对应从8259
+    out     021h, al; 主8259, ICW3.
+    call    io_delay
+
+    mov     al, 002h; 对应主8259的 IR2
+    out     0A1h, al; 从8259, ICW3.
+    call    io_delay
+
+    mov     al, 001h
+    out     021h, al; 主8259, ICW4.
+    call    io_delay
+
+    out     0A1h, al; 从8259, ICW4.
+    call    io_delay
+
+    mov     al, 11111110b; 仅仅开启定时器中断
+    ;mov    al, 11111111b; 屏蔽主8259所有中断
+    out 021h, al; 主8259, OCW1.
+    call io_delay
+
+    mov     al, 11111111b; 屏蔽从8259所有中断
+    out     0A1h, al; 从8259, OCW1.
+    call    io_delay
+
+    ret
+; Init8259A ---------------------------------------------------------------------------------------------
+
+io_delay:
+    nop
+    nop
+    nop
+    nop
+    ret
+
+_SpuriousHandler:
+SpuriousHandler     equ     _SpuriousHandler - $$
+    mov     ah,0CH
+    mov     al,'!'
+    mov     [gs:((80 * 0 + 75) * 2)],ax
+    jmp     $
+    iretd
 
 ; 启动分页机制 --------------------------------------------------------------
 SetupPaging:
