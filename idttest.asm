@@ -263,6 +263,9 @@ LABEL_SEG_CODE32:
 
 	mov	esp, TopOfStack
 
+    call    Init8259A
+    int     080h
+
 	; 下面显示一个字符串
 	push	szPMMessage
 	call	DispStr
@@ -353,6 +356,7 @@ SetupPaging:
 	mov	[PageTableNumber],ecx
 
 	; 为简化处理, 所有线性地址对应相等的物理地址.
+
 	; 首先初始化页目录
 	mov	ax, SelectorFlatRW
 	mov	es, ax
@@ -426,6 +430,7 @@ PagingDemo:
 
 	ret
 ;----------------------------------------------------------------------------
+
 
 ;切换页表--------------------------------------------------------------------
 PSwitch:
