@@ -69,7 +69,9 @@ _ARDStruct:							;ARDS
 	_dwLengthHigh:		dd	0
 	_dwType:		dd	0
 _PageTableNumber	dd	0
-
+_SavedIDTR          dd  0       ;用于保存IDTR
+                    dd  0
+_SavedIMREG:        db  0       ;中断屏蔽寄存器值
 _MemChkBuf:	times	256	db	0
 
 ;保护模式下使用这些符号
@@ -87,6 +89,8 @@ ARDStruct	equ	_ARDStruct - $$
 	dwLengthHigh	equ	_dwLengthHigh - $$
 	dwType		equ	_dwType - $$
 MemChkBuf		equ	_MemChkBuf - $$
+SavedIDTR       equ     _SavedIDTR - $$
+SavedIMREG      equ     _SavedIMREG - $$
 PageTableNumber	equ	_PageTableNumber - $$
 
 DataLen		equ	$ - LABEL_DATA
@@ -99,7 +103,12 @@ ALIGN 32
 [BITS 32]
 LABEL_IDT:
 ;门             目标选择子,             偏移,                   Dcount,     属性
-%rep 128
+%rep 32
+    Gate        SelectorCode32,         SpuriousHandler,        0,          DA_386IG
+%endrep
+.20h:
+    Gate        SelectorCode32,         ClockHandler,           0,          DA_386IG
+%rep 95
     Gate        SelectorCode32,         SpuriousHandler,        0,          DA_386IG
 %endrep
 .80h:
@@ -207,11 +216,18 @@ LABEL_MEM_CHK_OK:
     add     eax,LABEL_IDT
     mov     dword[IdtPtr + 2],eax
 
+    ;保存IDTR
+    sidt    [_SavedIDTR]
+
+    ;保存中断屏蔽寄存器值
+    in      al,21h
+    mov     [_SavedIMREG],al
+
 	; 加载 GDTR
 	lgdt	[GdtPtr]
 
 	; 关中断
-	cli
+	;cli
 
     ;加载IDTR
     lidt    [IdtPtr]
@@ -236,8 +252,12 @@ LABEL_REAL_ENTRY:		; 从保护模式跳回到实模式就到了这里
 	mov	ds, ax
 	mov	es, ax
 	mov	ss, ax
-
 	mov	sp, [_wSPValueInRealMode]
+
+    lidt    [_SavedIDTR]
+
+    mov     al,[_SavedIMREG]
+    out     21h,al
 
 	in	al, 92h		; ┓
 	and	al, 11111101b	; ┣ 关闭 A20 地址线
@@ -265,7 +285,9 @@ LABEL_SEG_CODE32:
 	mov	esp, TopOfStack
 
     call    Init8259A
+
     int     080h
+    sti
     jmp     $
 
 	; 下面显示一个字符串
@@ -280,9 +302,11 @@ LABEL_SEG_CODE32:
 	call	DispMemSize
 
 	call	PagingDemo
+
+    call    SetRealmode8259A
+
 	
 	jmp	SelectorCode16:0
-
 
 ; Init8259A ---------------------------------------------------------------------------------------------
 Init8259A:
@@ -316,8 +340,8 @@ Init8259A:
     out     0A1h, al; 从8259, ICW4.
     call    io_delay
 
+    ;mov    al,11111111b    ;屏蔽主8259所有中断
     mov     al, 11111110b; 仅仅开启定时器中断
-    ;mov    al, 11111111b; 屏蔽主8259所有中断
     out 021h, al; 主8259, OCW1.
     call io_delay
 
@@ -328,12 +352,45 @@ Init8259A:
     ret
 ; Init8259A ---------------------------------------------------------------------------------------------
 
+
+;SetRealmode8259A----------------------------------------------------------------------------------------
+SetRealmode8259A:
+    mov     ax,SelectorData
+    mov     fs,ax
+
+    mov     al,017h
+    out     020h,al     ;主8259, ICW1
+    call    io_delay
+
+    mov     al,008h     ;IRQ0对应中断向量0x8
+    out     021h,al     ;主8259, ICW2.
+    call    io_delay
+
+    mov     al,001h
+    out     021h,al     ;主8259,ICW4.
+    call    io_delay
+
+    mov     al,[fs:SavedIMREG]
+    out     021h,al
+    call    io_delay
+
+    ret
+;SetRealmode8259A---------------------------------------------------------------
+
 io_delay:
     nop
     nop
     nop
     nop
     ret
+
+;int handler----------------------------------
+_ClockHandler:
+ClockHandler    equ     _ClockHandler - $$
+    inc     byte[gs:((80 * 0 + 70) * 2)]
+    mov     al,20h
+    out     20h,al
+    iretd
 
 _UserIntHandler:
 UserIntHandler  equ     _UserIntHandler - $$
@@ -495,12 +552,16 @@ PSwitch:
 ;------------------------------------------------------------------------
 
 
+
 PagingDemoProc:
 OffsetPagingDemoProc	equ	PagingDemoProc - $$
 	mov	eax,LinearAddrDemo
 	call	eax
 	retf
+
 LenPagingDemoAll	equ	$ - PagingDemoProc
+
+
 
 foo:
 OffsetFoo	equ	foo - $$
@@ -513,6 +574,9 @@ OffsetFoo	equ	foo - $$
 	ret
 LenFoo	equ	$ - foo
 
+
+
+
 bar:
 OffsetBar	equ	$ - $$
 	mov	ah,0Ch
@@ -524,6 +588,8 @@ OffsetBar	equ	$ - $$
 	mov     [gs:((80 * 18 + 2) * 2)],ax
 	ret
 LenBar	equ	$ - bar
+
+
 
 
 ;显示内存信息---------------------------------------------------------------
