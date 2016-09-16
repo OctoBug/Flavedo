@@ -99,9 +99,11 @@ ALIGN 32
 [BITS 32]
 LABEL_IDT:
 ;门             目标选择子,             偏移,                   Dcount,     属性
-%rep 255
+%rep 128
     Gate        SelectorCode32,         SpuriousHandler,        0,          DA_386IG
 %endrep
+.80h:
+    Gate        SelectorCode32,         UserIntHandler,         0,          DA_386IG
 
 IdtLen  equ     $ - LABEL_IDT
 IdtPtr  dw      IdtLen - 1          ;段界限
@@ -260,11 +262,11 @@ LABEL_SEG_CODE32:
 
 	mov	ax, SelectorStack
 	mov	ss, ax			; 堆栈段选择子
-
 	mov	esp, TopOfStack
 
     call    Init8259A
     int     080h
+    jmp     $
 
 	; 下面显示一个字符串
 	push	szPMMessage
@@ -333,6 +335,13 @@ io_delay:
     nop
     ret
 
+_UserIntHandler:
+UserIntHandler  equ     _UserIntHandler - $$
+    mov     ah,0Ch
+    mov     al,'I'
+    mov     [gs:((80 * 0 + 70) * 2)],ax
+    iretd
+
 _SpuriousHandler:
 SpuriousHandler     equ     _SpuriousHandler - $$
     mov     ah,0CH
@@ -340,6 +349,7 @@ SpuriousHandler     equ     _SpuriousHandler - $$
     mov     [gs:((80 * 0 + 75) * 2)],ax
     jmp     $
     iretd
+
 
 ; 启动分页机制 --------------------------------------------------------------
 SetupPaging:
@@ -392,6 +402,7 @@ SetupPaging:
 
 	ret
 ; 分页机制启动完毕 ----------------------------------------------------------
+
 
 ;测试分页机制----------------------------------------------------------------
 PagingDemo:
@@ -483,6 +494,7 @@ PSwitch:
 	ret
 ;------------------------------------------------------------------------
 
+
 PagingDemoProc:
 OffsetPagingDemoProc	equ	PagingDemoProc - $$
 	mov	eax,LinearAddrDemo
@@ -512,6 +524,7 @@ OffsetBar	equ	$ - $$
 	mov     [gs:((80 * 18 + 2) * 2)],ax
 	ret
 LenBar	equ	$ - bar
+
 
 ;显示内存信息---------------------------------------------------------------
 DispMemSize:
@@ -563,6 +576,7 @@ DispMemSize:
 
 SegCode32Len	equ	$ - LABEL_SEG_CODE32
 ; END of [SECTION .s32]
+
 
 ; 16 位代码段. 由 32 位代码段跳入, 跳出后到实模式
 [SECTION .s16code]
