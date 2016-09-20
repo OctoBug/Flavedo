@@ -1,12 +1,26 @@
-SRC:=boot.asm
-BIN:=$(subst .asm,.com,$(SRC))
+##################################################
+# Makefile
+##################################################
+
+BOOT:=boot.asm
+LDR:=loader.asm
+BOOT_BIN:=$(subst .asm,.bin,$(BOOT))
+LDR_BIN:=$(subst .asm,.bin,$(LDR))
 
 .PHONY : everything
 
-everything : $(BIN)
-	sudo mount -o loop pm.img /mnt/floppy/
-	sudo cp $(BIN) /mnt/floppy/ -v
+everything : $(BOOT_BIN) $(LDR_BIN)
+	dd if=$(BOOT_BIN) of=a.img bs=512 count=1 conv=notrunc
+	sudo mount -o loop a.img /mnt/floppy/
+	sudo cp $(LDR_BIN) /mnt/floppy/ -v
 	sudo umount /mnt/floppy/
 
-$(BIN) : $(SRC)
+clean :
+	rm -f $(BOOT_BIN) $(LDR_BIN)
+
+$(BOOT_BIN) : $(BOOT)
 	nasm $< -o $@
+
+$(LDR_BIN) : $(LDR)
+	nasm $< -o $@
+
