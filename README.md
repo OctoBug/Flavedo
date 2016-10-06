@@ -6,7 +6,8 @@ Kernel exercise
 * 2016.07.13 Repository Flavedo Created & Information collecting
 
 ---
-### Stage 1: Start the Flavedo
+### Stage 1: Start the Flavedo 
+- 2016.10.06 finished chap 1 - chap 5 (read-only)
 - 2016.09.13 continue
 - 2016.08.29 pause for the f**king internship
 - 2016.07.21 start
