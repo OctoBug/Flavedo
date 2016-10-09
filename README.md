@@ -2,6 +2,7 @@ Tox
 ===
 Kernel exercise
 ### Log
+* Bran's 
 * 2016.07.21 Start the Flavedo
 * 2016.07.13 Repository Flavedo Created & Information collecting
 
