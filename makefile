@@ -13,14 +13,14 @@ ASMKFLAGS 	= -I include/ -f elf
 CFLAGS 		= -I include/ -c -Wall -f no-builtin -f no-stack-protector 		
 
 # This program
-TOXSBOOT 	= boot/boot.bin
+TOXSBOOT 	= boot/boot.bin boot/loader.bin
 
-.PHONY : 	everything image clean
+.PHONY : 	everything image clean buildimg
 
 # Default starting position
 everything : $(TOXSBOOT)
 
-image : clean everything buildimg
+image : everything buildimg
 
 clean : 
 	rm -f $(TOXSBOOT)
@@ -29,8 +29,11 @@ clean :
 buildimg :
 	dd if=boot/boot.bin of=tox.img bs=512 count=1 conv=notrunc
 	sudo mount -o loop tox.img /mnt/floppy/
+	sudo cp -vf boot/loader.bin /mnt/floppy/
 	sudo umount /mnt/floppy/
 
 # OBJS; $@: target; $<: first prerequisite's name
 boot/boot.bin : boot/boot.asm boot/include/fat12hdr.inc
+	$(ASM) $(ASMBFLAGS) -o $@ $<
+boot/loader.bin : boot/loader.asm boot/include/fat12hdr.inc
 	$(ASM) $(ASMBFLAGS) -o $@ $<
