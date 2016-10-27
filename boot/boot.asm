@@ -8,9 +8,12 @@ base_of_loader      equ     0x9000      ;loader.bin 被加载到的位置 - 段�
 offset_of_loader    equ     0x0100      ;loader.bin 被加载到的位置 - 偏移地址
 sects_of_root_dir   equ     14          ;根目录占用扇区数
 sectno_of_root_dir  equ     19          ;根目录第一个扇区号
+sectno_of_fat1      equ     1           ;FAT1 的首个扇区号
+delta_sect_no       equ     17          ;用于计算簇号 x 真正的扇区号, 17 = 19 - 2 (减2是因为簇号2对应数据取第1个扇区)
 ;-------------------------------------------------------------------------
 jmp     short   start               ;Start to boot.
 nop
+;-------------------------------------------------------------------------
 %include "fat12hdr.inc"             ;FAT12 磁盘头
 ;-------------------------------------------------------------------------
 start:
@@ -24,7 +27,7 @@ start:
     mov     al,0x03
     int     0x10
 ;-------------------------------------------------------------------------
-    mov     si,msg_boot
+    mov     si,msg_boot_sector
     call    print16
 ;软驱复位-----------------------------------------------------------------
     xor     ah,ah
@@ -81,12 +84,33 @@ loader_not_found:
     mov     si,msg_loader_not_found
     call    print16
     jmp     $                                   ;找不到 loader.bin, 暂且死循环在此
+;找到loader---------------------------------------------------------------
 loader_found:
     mov     si,msg_loader_found
     call    print16
-    jmp     $                                   ;找到 loader.bin, 暂且死循环在此
+    mov     si,msg_booting
+    call    print16
+    and     di,0xffe0               ;di -> 当前条目的开头
+    add     di,0x1a                 ;di -> 此条目对应的开始簇号, 偏移 0x1a
+    mov     cx,word[es:di]          ;cx <- 此条目对应的开始簇号
+    push    cx                      ;保存该簇号
+    add     cx,sects_of_root_dir    ;簇号+14
+    add     cx,delta_sect_no        ;簇号+17, 至此得到当前条目的起始扇区号
+    mov     ax,base_of_loader
+    mov     es,ax                   ;es <- base_of_loader
+    mov     bx,offset_of_loader     ;bx <- offset_of_loader
+    mov     ax,cx                   ;ax <- 起始扇区号
+;-------------------------------------------------------------------------
+go_on_loading:
+    mov     si
+    call    print16                 ;每读一个扇区就在"Booting"后面打一个点
+;------------------------------------------------------
+    mov     cl,1                    ;读取一个扇区
+    call    read_sector             ;根据 ax 
 ;打印字符串---------------------------------------------------------------
 print16:                            ;from @LastAvengers
+    push    ax
+    push    bx
 disp:
     lodsb                           ;ds:si -> al
     or      al,al
@@ -96,6 +120,8 @@ disp:
     int     0x10
     jmp     disp
 done:
+    pop     bx
+    pop     ax
     ret
 ;加载文件到内存-----------------------------------------------------------
 read_sector:
@@ -127,12 +153,16 @@ temp_sects_of_root  dw  sects_of_root_dir   ;根目录占用扇区数
 temp_read_sectno    dw  0                   ;要读取的扇区号
 loader_filename     db  "LOADER  BIN",0
 ;字符串-------------------------------------------------------------------
-msg_boot:
-    db  "Boot Sector loaded.",13,10,0
+msg_boot_sector:
+    db "Boot Sector loaded.",13,10,0
 msg_loader_not_found:
-    db  "Loader not found.",13,10,0
+    db "Loader not found.",13,10,0
 msg_loader_found:
-    db  "Loader found.",13,10,0
+    db "Loader found.",13,10,0
+msg_booting:
+    db "Booting",0
+msg_dot:
+    db ".",0
 ;-------------------------------------------------------------------------
 times   510-($-$$)  db  0           ;填充剩余空间
 dw      0xaa55                      ;boot sector 标志
