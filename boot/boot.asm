@@ -26,9 +26,6 @@ start:
     mov     ah,0x00
     mov     al,0x03
     int     0x10
-;-------------------------------------------------------------------------
-    mov     si,msg_boot_sector
-    call    print16
 ;软驱复位-----------------------------------------------------------------
     xor     ah,ah
     xor     dl,dl
@@ -99,14 +96,29 @@ loader_found:
     mov     ax,base_of_loader
     mov     es,ax                   ;es <- base_of_loader
     mov     bx,offset_of_loader     ;bx <- offset_of_loader
-    mov     ax,cx                   ;ax <- 起始扇区号
+    mov     ax,cx                   ;ax <- loader.bin 起始扇区号
 ;-------------------------------------------------------------------------
 go_on_loading:
-    mov     si
+    mov     si,msg_dot
     call    print16                 ;每读一个扇区就在"Booting"后面打一个点
 ;------------------------------------------------------
     mov     cl,1                    ;读取一个扇区
-    call    read_sector             ;根据 ax 
+    call    read_sector             ;根据 ax, 读取扇区
+    pop     ax                      ;取出此扇区对应的 FAT 中的簇号
+    call    get_fat_entry           ;由簇号得到对应 FAT 项内容, 保存于 ax
+    cmp     ax,0x0fff               ;是否 loader.bin 最后一个扇区
+    jz      loader_loaded
+    push    ax                      ;保存 FAT 内容
+    add     ax,sects_of_root_dir    ;+14
+    add     ax,delta_sect_no        ;+17
+    add     bx,[BPB_BytsPerSec]     ;bx + 512
+    jmp     go_on_loading
+;-------------------------------------------------------------------------
+loader_loaded:
+    mov     si,msg_loader_loaded
+    call    print16
+;跳转到 loader.bin--------------------------------------------------------
+    jmp     base_of_loader:offset_of_loader
 ;打印字符串---------------------------------------------------------------
 print16:                            ;from @LastAvengers
     push    ax
@@ -148,13 +160,54 @@ retry:
     add     esp,2                   ;读取成功, 恢复栈
     pop     bp
     ret
+;找到 ax 对应的 FAT 项, 结果放在 ax --------------------------------------
+get_fat_entry:
+    push    es
+    push    bx
+    push    ax
+    mov     ax,base_of_loader
+    sub     ax,0x0100               ;在 base_of_loader 后面开辟出 4K 空间
+    mov     es,ax
+;---------------------------------------------------
+    pop     ax
+    mov     byte[is_odd],0
+    mov     bx,3
+    mul     bx                      ;dx:ax = ax * 3
+    mov     bx,2
+    div     bx                      ;dx:ax / 2 => ax <- 商, dx <- 余
+    cmp     dx,0
+    jz      even
+    mov     byte[is_odd],1
+;至此, ax 内容是 FAT 项簇号在 FAT 中的偏移量--------
+even:
+    xor     dx,dx
+    mov     bx,[BPB_BytsPerSec]
+    div     bx                      ;ax 为相对于 FAT 扇区的扇区号, dx 为偏移
+    push    dx                      ;保存偏移
+    mov     bx,0
+    add     ax,sectno_of_fat1       ;ax 为 FAT 项扇区号
+    mov     cl,2
+    call    read_sector             ;一次读 2 扇区, 防止 FAT 项跨扇区
+    pop     dx
+    add     bx,dx                   ;es:bx -> FAT 项内容
+    mov     ax,[es:bx]              ;ax 即为函数输出
+;---------------------------------------------------
+    cmp     byte[is_odd],1
+    jnz     even_still
+    shr     ax,4
+even_still:
+    and     ax,0x0fff
+;---------------------------------------------------
+get_fat_entry_ok:
+    pop     bx
+    pop     es
+    ret
 ;变量---------------------------------------------------------------------
 temp_sects_of_root  dw  sects_of_root_dir   ;根目录占用扇区数
 temp_read_sectno    dw  0                   ;要读取的扇区号
-loader_filename     db  "LOADER  BIN",0
+loader_filename     db  "LOADER  BIN",0     ;loader.bin 的 DIR_NAME
+is_odd              db  0                   ;是否奇数
 ;字符串-------------------------------------------------------------------
-msg_boot_sector:
-    db "Boot Sector loaded.",13,10,0
 msg_loader_not_found:
     db "Loader not found.",13,10,0
 msg_loader_found:
@@ -163,6 +216,8 @@ msg_booting:
     db "Booting",0
 msg_dot:
     db ".",0
+msg_loader_loaded:
+    db 13,10,"Loader loaded.",13,10,0
 ;-------------------------------------------------------------------------
 times   510-($-$$)  db  0           ;填充剩余空间
 dw      0xaa55                      ;boot sector 标志
