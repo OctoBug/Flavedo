@@ -35,7 +35,7 @@ Kernel exercise
 - 2016.10.06 finished chap 1 - chap 5 (read-only) 
     I read it too slow.
 - 2016.09.13 continue
-- 2016.08.29 pause for the f\*\*king internship
+- 2016.08.29 pause for the f\*\*king internship 
 - 2016.07.21 start
 
 - reference: [《Orange's 一个操作系统的实现》](https://book.douban.com/subject/3735649/)  
