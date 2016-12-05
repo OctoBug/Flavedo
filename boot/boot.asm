@@ -6,10 +6,6 @@ org     0x7c00                      ;Boot状态, BIOS 将把 Boot Sector 加载�
 base_of_stack       equ     0x7c00      ;栈基地址
 base_of_loader      equ     0x9000      ;loader.bin 被加载到的位置 - 段地址
 offset_of_loader    equ     0x0100      ;loader.bin 被加载到的位置 - 偏移地址
-sects_of_root_dir   equ     14          ;根目录占用扇区数
-sectno_of_root_dir  equ     19          ;根目录第一个扇区号
-sectno_of_fat1      equ     1           ;FAT1 的首个扇区号
-delta_sect_no       equ     17          ;用于计算簇号 x 真正的扇区号, 17 = 19 - 2 (减2是因为簇号2对应数据取第1个扇区)
 ;-------------------------------------------------------------------------
 jmp     short   start               ;Start to boot.
 nop
