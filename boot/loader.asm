@@ -1,13 +1,13 @@
 ;-------------------------------------------------------------------------
-;Loader
+;loader
 ;-------------------------------------------------------------------------
 org     0x0100                      ;起始地址
 ;-------------------------------------------------------------------------
 base_of_stack       equ     0x0100      ;栈基地址
-base_of_loader      equ     0x8000      ;kernel.bin 被加载到的位置 - 段地址
-offset_of_loader    equ     0x00        ;kernel.bin 被加载到的位置 - 偏移地址
+base_of_kernel      equ     0x8000      ;kernel.bin 被加载到的位置 - 段地址
+offset_of_kernel    equ     0x00        ;kernel.bin 被加载到的位置 - 偏移地址
 ;-------------------------------------------------------------------------
-jmp     start               ;loader start.
+jmp     start               ;kernel start.
 ;-------------------------------------------------------------------------
 %include "fat12hdr.inc"             ;FAT12 磁盘头
 ;-------------------------------------------------------------------------
@@ -17,37 +17,35 @@ start:
     mov     es,ax
     mov     ss,ax
     mov     sp,base_of_stack
-;text mode, 80*25, 16 colors ---------------------------------------------
-;   mov     ah,0x00
-;   mov     al,0x03
-;   int     0x10
-;打印字符Loading----------------------------------------------------------
-    mov     si,msg_loading
+;进入loader---------------------------------------------------------------
+    mov     si,msg_loader_now
     call    print16
-;here
+;打印字符Finding----------------------------------------------------------
+    mov     si,msg_finding
+    call    print16
 ;软驱复位-----------------------------------------------------------------
     xor     ah,ah
     xor     dl,dl
     int     0x13
-;在 A 盘根目录寻找 loader.bin --------------------------------------------
+;在 A 盘根目录寻找 kernel.bin --------------------------------------------
     mov     word[temp_read_sectno],sectno_of_root_dir
 ;-------------------------------------------------------------------------
 search_in_root:
     cmp     word[temp_sects_of_root],0              ;判断根目录是否已经读完
-    jz      loader_not_found                        ;如果读完表示没找到 loader.bin
+    jz      kernel_not_found                        ;如果读完表示没找到 kernel.bin
     dec     word[temp_sects_of_root]
-    mov     ax,base_of_loader
+    mov     ax,base_of_kernel
     mov     es,ax
-    mov     bx,offset_of_loader                 ;存放的位置 es:bx
+    mov     bx,offset_of_kernel                 ;存放的位置 es:bx
     mov     ax,[temp_read_sectno]               ;要读取的扇区
     mov     cl,1                                ;读一个扇区
     call    read_sector
-    mov     si,loader_filename                  ;ds:si -> "LOADER  BIN"
-    mov     di,offset_of_loader                 ;es:di -> base_of_loader : offset_of_loader
+    mov     si,kernel_filename                  ;ds:si -> "KERNEL  BIN"
+    mov     di,offset_of_kernel                 ;es:di -> base_of_kernel : offset_of_kernel
     cld
     mov     dx,0x10                             ;0x0200 / 0x20 = 0x10, 即每个扇区需要读 16 次 大小位 32 字节的条目
 ;-----------------------------------------------------
-search_loader:
+search_kernel:
     cmp     dx,0                                ;判断是否已经比较完 16 个条目
     jz      next_sector                         ;下一个扇区
     dec     dx
@@ -55,7 +53,7 @@ search_loader:
 ;---------------------------------
 cmp_filename:
     cmp     cx,0
-    jz      loader_found                        ;已经比较完 11 个 字符, 说明找到了 loader.bin
+    jz      kernel_found                        ;已经比较完 11 个 字符, 说明找到了 kernel.bin
     dec     cx
     lodsb                                       ;ds:si -> al
     cmp     al,byte[es:di]                      ;被加载到 es:di 的文件的文件名
@@ -69,55 +67,63 @@ cmp_next_char:
 different_name:
     and     di,0xffe0                           ;指向本条目开头
     add     di,0x20                             ;下一条目
-    mov     si,loader_filename                  ;重新指向 LOADER  BIN 头部
-    jmp     search_loader                       ;
+    mov     si,kernel_filename                  ;重新指向 KERNEL  BIN 头部
+    jmp     search_kernel                       ;
 ;-----------------------------------------------------
 next_sector:
     add     word[temp_read_sectno],1
     jmp     search_in_root
 ;-------------------------------------------------------------------------
-loader_not_found:
-    mov     si,msg_loader_not_found
+kernel_not_found:
+    mov     si,msg_kernel_not_found
     call    print16
-    jmp     $                                   ;找不到 loader.bin, 暂且死循环在此
-;找到loader---------------------------------------------------------------
-loader_found:
-    mov     si,msg_loader_found
+    jmp     $                                   ;找不到 kernel.bin, 暂且死循环在此
+;找到kernel---------------------------------------------------------------
+kernel_found:
+    mov     si,msg_kernel_found
     call    print16
-    mov     si,msg_booting
+    mov     si,msg_loading_kern
     call    print16
     and     di,0xffe0               ;di -> 当前条目的开头
+;-------------------------------------------------------------------------
+    push    eax
+    mov     eax,[es:di + 0x1c]      ;指向文件大小
+    mov     dword[kernel_size],eax  ;保存 kernel.bin 的大小
+    pop     eax
+;-------------------------------------------------------------------------
     add     di,0x1a                 ;di -> 此条目对应的开始簇号, 偏移 0x1a
     mov     cx,word[es:di]          ;cx <- 此条目对应的开始簇号
     push    cx                      ;保存该簇号
     add     cx,sects_of_root_dir    ;簇号+14
     add     cx,delta_sect_no        ;簇号+17, 至此得到当前条目的起始扇区号
-    mov     ax,base_of_loader
-    mov     es,ax                   ;es <- base_of_loader
-    mov     bx,offset_of_loader     ;bx <- offset_of_loader
-    mov     ax,cx                   ;ax <- loader.bin 起始扇区号
+    mov     ax,base_of_kernel
+    mov     es,ax                   ;es <- base_of_kernel
+    mov     bx,offset_of_kernel     ;bx <- offset_of_kernel
+    mov     ax,cx                   ;ax <- kernel.bin 起始扇区号
 ;-------------------------------------------------------------------------
 go_on_loading:
     mov     si,msg_dot
-    call    print16                 ;每读一个扇区就在"Booting"后面打一个点
+    call    print16                 ;每读一个扇区就在"Loading"后面打一个点
 ;------------------------------------------------------
     mov     cl,1                    ;读取一个扇区
     call    read_sector             ;根据 ax, 读取扇区
     pop     ax                      ;取出此扇区对应的 FAT 中的簇号
     call    get_fat_entry           ;由簇号得到对应 FAT 项内容, 保存于 ax
-    cmp     ax,0x0fff               ;是否 loader.bin 最后一个扇区
-    jz      loader_loaded
+    cmp     ax,0x0fff               ;是否 kernel.bin 最后一个扇区
+    jz      kernel_loaded
     push    ax                      ;保存 FAT 内容
     add     ax,sects_of_root_dir    ;+14
     add     ax,delta_sect_no        ;+17
     add     bx,[BPB_BytsPerSec]     ;bx + 512
     jmp     go_on_loading
 ;-------------------------------------------------------------------------
-loader_loaded:
-    mov     si,msg_loader_loaded
+kernel_loaded:
+    call    kill_motor              ;关闭软驱马达
+    mov     si,msg_kernel_loaded
     call    print16
-;跳转到 loader.bin--------------------------------------------------------
-    jmp     base_of_loader:offset_of_loader
+    jmp     $
+;跳转到 kernel.bin--------------------------------------------------------
+;    jmp     base_of_kernel:offset_of_kernel
 ;打印字符串---------------------------------------------------------------
 print16:                            ;from @LastAvengers
     push    ax
@@ -164,8 +170,8 @@ get_fat_entry:
     push    es
     push    bx
     push    ax
-    mov     ax,base_of_loader
-    sub     ax,0x0100               ;在 base_of_loader 后面开辟出 4K 空间
+    mov     ax,base_of_kernel
+    sub     ax,0x0100               ;在 base_of_kernel 后面开辟出 4K 空间
     mov     es,ax
 ;---------------------------------------------------
     pop     ax
@@ -201,22 +207,33 @@ get_fat_entry_ok:
     pop     bx
     pop     es
     ret
+;关闭软驱马达-------------------------------------------------------------
+kill_motor:
+    push    dx
+    mov     dx,0x03f2
+    mov     al,0
+    out     dx,al
+    pop     dx
+    ret
 ;变量---------------------------------------------------------------------
 temp_sects_of_root  dw  sects_of_root_dir   ;根目录占用扇区数
 temp_read_sectno    dw  0                   ;要读取的扇区号
-loader_filename     db  "LOADER  BIN",0     ;loader.bin 的 DIR_NAME
+kernel_filename     db  "KERNEL  BIN",0     ;kernel.bin 的 DIR_NAME
 is_odd              db  0                   ;是否奇数
+kernel_size         dd  0                   ;kernel.bin 文件大小
 ;字符串-------------------------------------------------------------------
-msg_loader_not_found:
-    db "Loader not found.",13,10,0
-msg_loader_found:
-    db "Loader found.",13,10,0
-msg_loading:
+msg_loader_now:
+    db "In loader now.",13,10,0
+msg_finding:
+    db "Finding kernel.",13,10,0
+msg_kernel_not_found:
+    db "Kernel not found.",13,10,0
+msg_kernel_found:
+    db "Kernel found.",13,10,0
+msg_loading_kern:
     db "Loading",0
 msg_dot:
     db ".",0
-msg_loader_loaded:
-    db 13,10,"Loader loaded.",13,10,0
+msg_kernel_loaded:
+    db 13,10,"Kernel loaded.",13,10,0
 ;-------------------------------------------------------------------------
-times   510-($-$$)  db  0           ;填充剩余空间
-dw      0xaa55                      ;boot sector 标志
