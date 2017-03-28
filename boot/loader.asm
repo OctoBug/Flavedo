@@ -1,15 +1,28 @@
 ;-------------------------------------------------------------------------
 ;loader
 ;-------------------------------------------------------------------------
-org     0x0100                      ;起始地址
-;-------------------------------------------------------------------------
-base_of_stack       equ     0x0100      ;栈基地址
-base_of_kernel      equ     0x8000      ;kernel.bin 被加载到的位置 - 段地址
-offset_of_kernel    equ     0x00        ;kernel.bin 被加载到的位置 - 偏移地址
+org     0x0100              ;起始地址
 ;-------------------------------------------------------------------------
 jmp     start               ;kernel start.
 ;-------------------------------------------------------------------------
 %include "fat12hdr.inc"             ;FAT12 磁盘头
+%include "load.inc"                 ;kernel.bin 位置定义
+%include "pm.inc"                   ;一些常量和宏定义
+;GDT----------------------------------------------------------------------
+;描述符         段基址                  段界限      属性
+desc_gdt:       Descriptor 0,           0,          0                           ;空描述符
+desc_flat_c:    Descriptor 0,           0x0fffff,   DA_CR|DA_32|DA_LIMIT_4K     ;0-4G
+desc_flat_rw:   Descriptor 0,           0x0fffff,   DA_DRW|DA_32|DA_LIMIT_4K    ;0-4G
+desc_video:     Descriptor 0x0b8000,    0xffff,     DA_DRW|DA_DPL3              ;显存首地址
+gdt_len     equ     $ - desc_gdt                            ;段长度
+gdt_ptr     dw      gdt_len - 1                             ;段界限
+            dd      base_of_loader_phy_addr + desc_gdt      ;基地址
+;GDT 选择子---------------------------------------------------------------
+selector_flat_c     equ     desc_flat_c - desc_gdt
+selector_flat_rw    equ     desc_flat_rw - desc_gdt
+selector_video      equ     (desc_video - desc_gdt)|SA_RPL3
+;-------------------------------------------------------------------------
+base_of_stack       equ     0x0100      ;栈基地址
 ;-------------------------------------------------------------------------
 start:
     mov     ax,cs
@@ -214,6 +227,36 @@ kill_motor:
     mov     al,0
     out     dx,al
     pop     dx
+    ret
+;以下代码均在保护模式下执行-----------------------------------------------
+;32 位代码段, 由实模式跳入------------------------------------------------
+[section .s32]
+align 32
+[bits 32]
+pm_start:
+    mov     ax,selector_video
+    mov     gs,ax
+    mov     ax,selector_flat_rw
+    mov     ds,ax
+    mov     es,ax
+    mov     fs,ax
+    mov     ss,ax
+    mov     esp,top_
+
+;打印字符串---------------------------------------------------------------
+print32:
+    add     edi,160
+    push    edi
+    cld
+disp32:
+    lodsb
+    cmp     al,0
+    je      done32
+    mov     [gs:edi],ax
+    add     edi,2
+    jmp     disp32
+done32:
+    pop     edi
     ret
 ;变量---------------------------------------------------------------------
 temp_sects_of_root  dw  sects_of_root_dir   ;根目录占用扇区数
